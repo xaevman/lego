@@ -28,7 +28,7 @@ const (
 	EnvRegion          = envNamespace + "REGION"
 	EnvHostedZoneID    = envNamespace + "HOSTED_ZONE_ID"
 	EnvMaxRetries      = envNamespace + "MAX_RETRIES"
-	EnvAssumeRoleID    = envNamespace + "ASSUME_ROLE_ID"
+	EnvAssumeRoleARN   = envNamespace + "ASSUME_ROLE_ARN"
 
 	EnvTTL                = envNamespace + "TTL"
 	EnvPropagationTimeout = envNamespace + "PROPAGATION_TIMEOUT"
@@ -42,7 +42,7 @@ type Config struct {
 	PropagationTimeout time.Duration
 	PollingInterval    time.Duration
 	HostedZoneID       string
-	AssumeRoleID       string
+	AssumeRoleARN      string
 	Client             *route53.Route53
 }
 
@@ -54,7 +54,7 @@ func NewDefaultConfig() *Config {
 		PropagationTimeout: env.GetOrDefaultSecond(EnvPropagationTimeout, 2*time.Minute),
 		PollingInterval:    env.GetOrDefaultSecond(EnvPollingInterval, 4*time.Second),
 		HostedZoneID:       env.GetOrFile(EnvHostedZoneID),
-		AssumeRoleID:       env.GetOrDefaultString(EnvAssumeRoleID, ""),
+		AssumeRoleARN:      env.GetOrDefaultString(EnvAssumeRoleARN, ""),
 	}
 }
 
@@ -120,8 +120,8 @@ func NewDNSProviderConfig(config *Config) (*DNSProvider, error) {
 	}
 
 	var cl *route53.Route53
-	if len(config.AssumeRoleID) > 0 {
-		creds := stscreds.NewCredentials(sess, config.AssumeRoleID)
+	if len(config.AssumeRoleARN) > 0 {
+		creds := stscreds.NewCredentials(sess, config.AssumeRoleARN)
 		cl = route53.New(sess, &aws.Config{Credentials: creds})
 	} else {
 		cl = route53.New(sess)
