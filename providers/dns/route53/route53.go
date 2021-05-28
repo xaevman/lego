@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
@@ -27,6 +28,7 @@ const (
 	EnvRegion          = envNamespace + "REGION"
 	EnvHostedZoneID    = envNamespace + "HOSTED_ZONE_ID"
 	EnvMaxRetries      = envNamespace + "MAX_RETRIES"
+	EnvAssumeRoleID    = envNamespace + "ASSUME_ROLE_ID"
 
 	EnvTTL                = envNamespace + "TTL"
 	EnvPropagationTimeout = envNamespace + "PROPAGATION_TIMEOUT"
@@ -40,6 +42,7 @@ type Config struct {
 	PropagationTimeout time.Duration
 	PollingInterval    time.Duration
 	HostedZoneID       string
+	AssumeRoleID       string
 	Client             *route53.Route53
 }
 
@@ -51,6 +54,7 @@ func NewDefaultConfig() *Config {
 		PropagationTimeout: env.GetOrDefaultSecond(EnvPropagationTimeout, 2*time.Minute),
 		PollingInterval:    env.GetOrDefaultSecond(EnvPollingInterval, 4*time.Second),
 		HostedZoneID:       env.GetOrFile(EnvHostedZoneID),
+		AssumeRoleID:       env.GetOrDefaultString(EnvAssumeRoleID, ""),
 	}
 }
 
@@ -115,7 +119,14 @@ func NewDNSProviderConfig(config *Config) (*DNSProvider, error) {
 		return nil, err
 	}
 
-	cl := route53.New(sess)
+	var cl *route53.Route53
+	if len(config.AssumeRoleID) > 0 {
+		creds := stscreds.NewCredentials(sess, config.AssumeRoleID)
+		cl = route53.New(sess, &aws.Config{Credentials: creds})
+	} else {
+		cl = route53.New(sess)
+	}
+
 	return &DNSProvider{client: cl, config: config}, nil
 }
 
